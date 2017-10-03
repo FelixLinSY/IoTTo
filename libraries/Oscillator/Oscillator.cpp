@@ -33,6 +33,7 @@ bool Oscillator::next_sample()
   return false;
 }
 
+
 //-- Attach an oscillator to a servo
 //-- Input: pin is the arduino pin were the servo
 //-- is connected
@@ -48,8 +49,8 @@ void Oscillator::attach(int pin, bool rev)
       //-- Initialization of oscilaltor parameters
       _TS=30;
       _T=2000;
-      _N = _T/_TS;
-      _inc = 2*M_PI/_N;
+      _n = _T/_TS;
+      _inc = 2*M_PI/_n;
 
       _previousMillis=0;
 
@@ -78,14 +79,14 @@ void Oscillator::detach()
 /*************************************/
 /* Set the oscillator period, in ms  */
 /*************************************/
-void Oscillator::SetT(unsigned int T)
+void Oscillator::SetT(int T)
 {
   //-- Assign the new period
   _T=T;
   
   //-- Recalculate the parameters
-  _N = _T/_TS;
-  _inc = 2*M_PI/_N;
+  _n = _T/_TS;
+  _inc = 2*M_PI/_n;
 };
 
 /*******************************/
@@ -115,6 +116,22 @@ void Oscillator::refresh()
          _pos = round(_A * sin(_phase + _phase0) + _O);
 	       if (_rev) _pos=-_pos;
          _servo.write(_pos+90+_trim);
+
+        /*
+         Serial.print("_A:");
+         Serial.println(_A);
+         Serial.print("_O:");
+         Serial.println(_O);
+         Serial.print("_phase:");
+         Serial.println(_phase);
+         Serial.print("_phase0:");
+         Serial.println(_phase0);
+         Serial.print("_pos:");
+         Serial.println(_pos);
+         Serial.print("trim:");
+         Serial.println(_trim);
+         */
+
       }
 
       //-- Increment the phase

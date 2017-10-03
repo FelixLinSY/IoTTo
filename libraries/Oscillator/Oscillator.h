@@ -11,6 +11,8 @@
 #include <Servo.h>
 
 //-- Macro for converting from degrees to radians
+#define M_PI PI
+
 #ifndef DEG2RAD
   #define DEG2RAD(g) ((g)*M_PI)/180
 #endif
@@ -22,10 +24,10 @@ class Oscillator
     void attach(int pin, bool rev =false);
     void detach();
     
-    void SetA(unsigned int A) {_A=A;};
-    void SetO(unsigned int O) {_O=O;};
+    void SetA(int A) {_A=A;};
+    void SetO(int O) {_O=O;};
     void SetPh(double Ph) {_phase0=Ph;};
-    void SetT(unsigned int T);
+    void SetT(int T);
     void SetTrim(int trim){_trim=trim;};
     int getTrim() {return _trim;};
     void SetPosition(int position); 
@@ -42,9 +44,9 @@ class Oscillator
     Servo _servo;
     
     //-- Oscillators parameters
-    unsigned int _A;  //-- Amplitude (degrees)
-    unsigned int _O;  //-- Offset (degrees)
-    unsigned int _T;  //-- Period (miliseconds)
+    int _A;  //-- Amplitude (degrees)
+    int _O;  //-- Offset (degrees)
+    int _T;  //-- Period (miliseconds)
     double _phase0;   //-- Phase (radians)
     
     //-- Internal variables
@@ -52,8 +54,8 @@ class Oscillator
     int _trim;        //-- Calibration offset
     double _phase;    //-- Current phase
     double _inc;      //-- Increment of phase
-    double _N;        //-- Number of samples
-    unsigned int _TS; //-- sampling period (ms)
+    double _n;        //-- Number of samples
+    int _TS; //-- sampling period (ms)
     
     long _previousMillis; 
     long _currentMillis;

@@ -1,48 +1,83 @@
+/* 
+  this file is modifed from https://github.com/OttoDIY
+  modifed : revise interfaces to pass all pin assigment from outside
+  modifed : add extra funtions (ex: getTrims(), stiff())
+ */
 
-#if defined(ARDUINO) && ARDUINO >= 100
-  #include "Arduino.h"
-#else
-  #include "WProgram.h"
-  #include <pins_arduino.h>
-#endif
-
-
+#include "Arduino.h"
 #include "Otto.h"
 #include <Oscillator.h>
 #include <US.h>
+#include <EEPROM.h>
 
+Otto::Otto() {
+  isOttoResting = false;
+  isUseBuzzer = false;
+  isUseNoiseSensor = false;
+  isUseUltrasonic = false;
+  isUseLEDMatrix = false;
+}
 
-
-void Otto::init(int YL, int YR, int RL, int RR, bool load_calibration, int NoiseSensor, int Buzzer, int USTrigger, int USEcho) {
+void Otto::initLegs(int LLEG, int RLEG, int LFOOT, int RFOOT, bool load_calibration) {
   
-  servo_pins[0] = YL;
-  servo_pins[1] = YR;
-  servo_pins[2] = RL;
-  servo_pins[3] = RR;
+  servo_pins[0] = LLEG;
+  servo_pins[1] = RLEG;
+  servo_pins[2] = LFOOT;
+  servo_pins[3] = RFOOT;
 
   attachServos();
   isOttoResting=false;
 
+
   if (load_calibration) {
     for (int i = 0; i < 4; i++) {
       int servo_trim = EEPROM.read(i);
+      
+      Serial.print(servo_trim);
+      Serial.print(" ") ;
+
       if (servo_trim > 128) servo_trim -= 256;
       servo[i].SetTrim(servo_trim);
     }
   }
-  
+  Serial.println(" ") ;
+
   for (int i = 0; i < 4; i++) servo_position[i] = 90;
-
-  //US sensor init with the pins:
-  us.init(USTrigger, USEcho);
-
-  //Buzzer & noise sensor pins: 
-  pinBuzzer = Buzzer;
-  pinNoiseSensor = NoiseSensor;
-
-  pinMode(Buzzer,OUTPUT);
-  pinMode(NoiseSensor,INPUT);
 }
+
+
+void Otto::initBuzzer(int pin) {
+
+  isUseBuzzer = true;
+
+  pinBuzzer = pin;
+  pinMode(pinBuzzer,OUTPUT);    
+}
+
+void Otto::initNoiseSensor(int pin) {
+
+  isUseNoiseSensor = true;
+
+  pinNoiseSensor = pin;
+  pinMode(pin,INPUT);
+
+}
+
+void Otto::initUltrasonic(int trigger_pin, int echo_pin) {
+
+  isUseUltrasonic = true;
+
+ //US sensor init with the pins:
+  us.init(trigger_pin, echo_pin);
+}
+
+void Otto::initLEDMatrix(int din_pin, int cs_pin, int clk_pin, int dir) {
+
+  isUseLEDMatrix = true;
+  ledMatrix.init(din_pin, cs_pin, clk_pin, 1); 
+  ledOrientation = (MatrixRotation)dir;  
+}
+  
 
 ///////////////////////////////////////////////////////////////////
 //-- ATTACH & DETACH FUNCTIONS ----------------------------------//
@@ -64,19 +99,48 @@ void Otto::detachServos(){
 ///////////////////////////////////////////////////////////////////
 //-- OSCILLATORS TRIMS ------------------------------------------//
 ///////////////////////////////////////////////////////////////////
-void Otto::setTrims(int YL, int YR, int RL, int RR) {
-  servo[0].SetTrim(YL);
-  servo[1].SetTrim(YR);
-  servo[2].SetTrim(RL);
-  servo[3].SetTrim(RR);
+void Otto::setTrims(int LLEG, int RLEG, int LFOOT, int RFOOT) {
+  servo[0].SetTrim(LLEG);
+  servo[1].SetTrim(RLEG);
+  servo[2].SetTrim(LFOOT);
+  servo[3].SetTrim(RFOOT);
+}
+
+void Otto::getTrims(int &LLEG, int &RLEG, int &LFOOT, int &RFOOT) {
+
+  LLEG = EEPROM.read(0);
+  if (LLEG > 128) LLEG -= 256;
+
+  RLEG = EEPROM.read(1);  
+  if (RLEG > 128) RLEG -= 256;
+
+  LFOOT = EEPROM.read(2);  
+  if (LFOOT > 128) LFOOT -= 256;
+
+  RFOOT = EEPROM.read(3);  
+  if (RFOOT > 128) RFOOT -= 256;
+
+
+  Serial.print("LLEG:");
+  Serial.print(LLEG);
+
+  Serial.print(" RLEG:");
+  Serial.print(RLEG);
+
+  Serial.print(" LFOOT:");
+  Serial.print(LFOOT);
+
+  Serial.print(" RFOOT:");
+  Serial.print(RFOOT);
+
+
 }
 
 void Otto::saveTrimsOnEEPROM() {
-  
+
   for (int i = 0; i < 4; i++){ 
       EEPROM.write(i, servo[i].getTrim());
   } 
-      
 }
 
 
@@ -150,7 +214,7 @@ void Otto::_execute(int A[4], int O[4], int T, double phase_diff[4], float steps
 ///////////////////////////////////////////////////////////////////
 void Otto::home(){
 
-  if(isOttoResting==false){ //Go to rest position only if necessary
+  if(isOttoResting==false){ //Go to rest position onLLEG if necessaRLEG
 
     int homes[4]={90, 90, 90, 90}; //All the servos at rest position
     _moveServos(500,homes);   //Move the servos in half a second
@@ -169,6 +233,13 @@ void Otto::setRestState(bool state){
 
     isOttoResting = state;
 }
+
+void Otto::stiff(){
+
+    int homes[4]={90, 90, 90, 90}; //All the servos at rest position
+    _moveServos(500,homes);   //Move the servos in half a second
+}
+
 
 
 ///////////////////////////////////////////////////////////////////
@@ -466,11 +537,11 @@ void Otto::moonwalker(float steps, int T, int h, int dir){
   //-- wave moving from one side to another
   //-- The two Otto's feet are equivalent to a minimal configuration. It is known
   //-- that 2 servos can move like a worm if they are 120 degrees out of phase
-  //-- In the example of Otto, the two feet are mirrored so that we have:
+  //-- In the example of Otto, the two feet are miRFOOTored so that we have:
   //--    180 - 120 = 60 degrees. The actual phase difference given to the oscillators
   //--  is 60 degrees.
   //--  Both amplitudes are equal. The offset is half the amplitud plus a little bit of
-  //-   offset so that the robot tiptoe lightly
+  //-   offset so that the robot tiptoe lightLLEG
  
   int A[4]= {0, 0, h, h};
   int O[4] = {0, 0, h/2+2, -h/2 -2};
@@ -533,6 +604,10 @@ void Otto::flapping(float steps, int T, int h, int dir){
 //---------------------------------------------------------
 float Otto::getDistance(){
 
+    if(!isUseUltrasonic){
+      return 0;
+  }
+
   return us.read();
 }
 
@@ -541,6 +616,10 @@ float Otto::getDistance(){
 //-- Otto getNoise: return Otto's noise sensor measure
 //---------------------------------------------------------
 int Otto::getNoise(){
+
+  if(!isUseNoiseSensor){
+    return 0;
+  }
 
   int noiseLevel = 0;
   int noiseReadings = 0;
@@ -559,99 +638,307 @@ int Otto::getNoise(){
 }
 
 
-//---------------------------------------------------------
-//-- Otto getBatteryLevel: return battery voltage percent
-//---------------------------------------------------------
-double Otto::getBatteryLevel(){
-
-  //The first read of the batery is often a wrong reading, so we will discard this value. 
-    double batteryLevel = battery.readBatPercent();
-    double batteryReadings = 0;
-    int numReadings = 10;
-
-    for(int i=0; i<numReadings; i++){
-        batteryReadings += battery.readBatPercent();
-        delay(1); // delay in between reads for stability
-    }
-
-    batteryLevel = batteryReadings / numReadings;
-
-    return batteryLevel;
-}
-
-
-double Otto::getBatteryVoltage(){
-
-  //The first read of the batery is often a wrong reading, so we will discard this value. 
-    double batteryLevel = battery.readBatVoltage();
-    double batteryReadings = 0;
-    int numReadings = 10;
-
-    for(int i=0; i<numReadings; i++){
-        batteryReadings += battery.readBatVoltage();
-        delay(1); // delay in between reads for stability
-    }
-
-    batteryLevel = batteryReadings / numReadings;
-
-    return batteryLevel;
-}
-
-
 ///////////////////////////////////////////////////////////////////
 //-- MOUTHS & ANIMATIONS ----------------------------------------//
 ///////////////////////////////////////////////////////////////////
 
-unsigned long int Otto::getMouthShape(int number){
-  unsigned long int types []={zero_code,one_code,two_code,three_code,four_code,five_code,six_code,seven_code,eight_code,
+MouthData Otto::getMouthShape(int number){
+  MouthData types [] = {zero_code,one_code,two_code,three_code,four_code,five_code,six_code,seven_code,eight_code,
   nine_code,smile_code,happyOpen_code,happyClosed_code,heart_code,bigSurprise_code,smallSurprise_code,tongueOut_code,
   vamp1_code,vamp2_code,lineMouth_code,confused_code,diagonal_code,sad_code,sadOpen_code,sadClosed_code,
   okMouth_code, xMouth_code,interrogation_code,thunder_code,culito_code,angry_code};
-
+  
   return types[number];
 }
 
 
-unsigned long int Otto::getAnimShape(int anim, int index){
+MouthData Otto::getAnimShape(int anim, int index){
 
-  unsigned long int littleUuh_code[]={
-     0b00000000000000001100001100000000,
-     0b00000000000000000110000110000000,
-     0b00000000000000000011000011000000,
-     0b00000000000000000110000110000000,
-     0b00000000000000001100001100000000,
-     0b00000000000000011000011000000000,
-     0b00000000000000110000110000000000,
-     0b00000000000000011000011000000000  
+  static const uint8_t littleUuh_code[][8]={
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00011000,
+      B00011000,
+      B00000000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00001100,
+      B00001100,
+      B00000000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000110,
+      B00000110,
+      B00000000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00001100,
+      B00001100,
+      B00000000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00011000,
+      B00011000,
+      B00000000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00110000,
+      B00110000,
+      B00000000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B01100000,
+      B01100000,
+      B00000000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00110000,
+      B00110000,
+      B00000000,
+     }, 
   };
 
-  unsigned long int dreamMouth_code[]={
-     0b00000000000000000000110000110000,
-     0b00000000000000010000101000010000,  
-     0b00000000011000100100100100011000,
-     0b00000000000000010000101000010000           
+  static const uint8_t dreamMouth_code[][8]={
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B01100000,
+      B01100000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00100000,
+      B01010000,
+      B00100000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00110000,
+      B01001000,
+      B01001000,
+      B00110000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00100000,
+      B01010000,
+      B00100000,
+     },    
   };
 
-  unsigned long int adivinawi_code[]={
-     0b00100001000000000000000000100001,
-     0b00010010100001000000100001010010,
-     0b00001100010010100001010010001100,
-     0b00000000001100010010001100000000,
-     0b00000000000000001100000000000000,
-     0b00000000000000000000000000000000
+  static const uint8_t adivinawi_code[][8]={
+     {B00000000,
+      B00000000,
+      B00000000,
+      B01000010,
+      B00000000,
+      B00000000,
+      B00000000,
+      B01000010,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00100100,
+      B01000010,
+      B00000000,
+      B01000010,
+      B00100100,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00011000,
+      B00100100,
+      B01000010,
+      B00100100,
+      B00011000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00011000,
+      B00100100,
+      B00011000,
+      B00000000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00011000,
+      B00000000,
+      B00000000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+     },
   };
 
-  unsigned long int wave_code[]={
-     0b00001100010010100001000000000000,
-     0b00000110001001010000100000000000,
-     0b00000011000100001000010000100000,
-     0b00000001000010000100001000110000,
-     0b00000000000001000010100100011000,
-     0b00000000000000100001010010001100,
-     0b00000000100000010000001001000110,
-     0b00100000010000001000000100000011,
-     0b00110000001000000100000010000001,
-     0b00011000100100000010000001000000    
+  static const uint8_t wave_code[][8]={
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00011000,
+      B00100100,
+      B01000010,
+      B00000000,
+      B00000000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00001100,
+      B00010010,
+      B00100000,
+      B01000000,
+      B00000000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000110,
+      B00001000,
+      B00010000,
+      B00100000,
+      B01000000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000010,
+      B00000100,
+      B00001000,
+      B00010000,
+      B01100000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000010,
+      B00000100,
+      B01001000,
+      B00110000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B01000010,
+      B00100100,
+      B00011000,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00000000,
+      B01000000,
+      B00100000,
+      B00010010,
+      B00001100,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B01000000,
+      B00100000,
+      B00010000,
+      B00001000,
+      B00000110,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B01100000,
+      B00010000,
+      B00001000,
+      B00000100,
+      B00000010,
+     },
+
+     {B00000000,
+      B00000000,
+      B00000000,
+      B00110000,
+      B01001000,
+      B00000100,
+      B00000010,
+      B00000000,
+     },
   };
 
   switch  (anim){
@@ -668,30 +955,30 @@ unsigned long int Otto::getAnimShape(int anim, int index){
     case wave:
         return wave_code[index];
         break;    
+    default:
+      // add return 0 to avoid compile eRFOOTor
+      return 0;
+      break;
   }   
 }
 
 
 void Otto::putAnimationMouth(unsigned long int aniMouth, int index){
-
-      ledmatrix.writeFull(getAnimShape(aniMouth,index));
+  ledMatrix.writeMatrix(getAnimShape(aniMouth,index), ledOrientation);
 }
 
 
-void Otto::putMouth(unsigned long int mouth, bool predefined){
+void Otto::putMouth(MouthData mouth){  
+  ledMatrix.writeMatrix(mouth, ledOrientation);
+}
 
-  if (predefined){
-    ledmatrix.writeFull(getMouthShape(mouth));
-  }
-  else{
-    ledmatrix.writeFull(mouth);
-  }
+void Otto::putMouth(int predefinedIndex){
+  ledMatrix.writeMatrix(getMouthShape(predefinedIndex), ledOrientation);
 }
 
 
 void Otto::clearMouth(){
-
-  ledmatrix.clearMatrix();
+  ledMatrix.clearMatrix();
 }
 
 
@@ -737,6 +1024,11 @@ void Otto::bendTones (float initFrequency, float finalFrequency, float prop, lon
 
 
 void Otto::sing(int songName){
+
+  if(!isUseBuzzer){
+    return;
+  }
+
   switch(songName){
 
     case S_connection:

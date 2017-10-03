@@ -10,6 +10,7 @@ US::US(int pinTrigger, int pinEcho){
 
 void US::init(int pinTrigger, int pinEcho)
 {
+  Serial.print("init");
   _pinTrigger = pinTrigger;
   _pinEcho = pinEcho;
   pinMode( _pinTrigger , OUTPUT );
@@ -30,6 +31,7 @@ long US::TP_init()
 float US::read(){
   long microseconds = US::TP_init();
   long distance;
+
   distance = microseconds/29/2;
   if (distance == 0){
     distance = 999;

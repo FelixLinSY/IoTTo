@@ -1,3 +1,9 @@
+/* 
+  this file is modifed from https://github.com/OttoDIY
+  modifed : revise interfaces to pass all pin assigment from outside
+  modifed : add extra funtions (ex: getTrims(), stiff())
+ */
+
 #ifndef Otto_h
 #define Otto_h
 
@@ -6,9 +12,8 @@
 #include <EEPROM.h>
 
 #include <US.h>
-#include <LedMatrix.h>
-#include <BatReader.h>
-
+//#include <LedMatrix.h>
+#include <MaxMatrix.h>
 #include "Otto_mouths.h"
 #include "Otto_sounds.h"
 #include "Otto_gestures.h"
@@ -23,25 +28,27 @@
 #define MEDIUM      15
 #define BIG         30
 
-#define PIN_Buzzer  10
-#define PIN_Trigger 8
-#define PIN_Echo    9
-#define PIN_NoiseSensor A6
-
-
 class Otto
 {
   public:
 
+    // -- Constructor
+    Otto();
+
     //-- Otto initialization
-    void init(int YL, int YR, int RL, int RR, bool load_calibration=true, int NoiseSensor=PIN_NoiseSensor, int Buzzer=PIN_Buzzer, int USTrigger=PIN_Trigger, int USEcho=PIN_Echo);
+    void initLegs(int LLEG, int RLEG, int LFOOT, int RFOOT, bool load_calibration=true);
+    void initBuzzer(int pin);
+    void initNoiseSensor(int pin);
+    void initUltrasonic(int trigger_pin, int echo_pin);
+    void initLEDMatrix(int din_pin, int cs_pin, int clk_pin, int dir=MATRIX_DIR_0);
 
     //-- Attach & detach functions
     void attachServos();
     void detachServos();
 
     //-- Oscillator Trims
-    void setTrims(int YL, int YR, int RL, int RR);
+    void setTrims(int LLEG, int RLEG, int LFOOT, int RFOOT);
+    void getTrims(int &LLEG, int &RLEG, int &LFOOT, int &RFOOT);
     void saveTrimsOnEEPROM();
 
     //-- Predetermined Motion Functions
@@ -53,6 +60,9 @@ class Otto
     bool getRestState();
     void setRestState(bool state);
     
+    //--Stiff
+    void stiff();
+
     //-- Predetermined Motion Functions
     void jump(float steps=1, int T = 2000);
 
@@ -75,12 +85,10 @@ class Otto
     float getDistance(); //US sensor
     int getNoise();      //Noise Sensor
 
-    //-- Battery
-    double getBatteryLevel();
-    double getBatteryVoltage();
-    
+  
     //-- Mouth & Animations
-    void putMouth(unsigned long int mouth, bool predefined = true);
+    void putMouth(MouthData mouth);
+    void putMouth(int predefinedIndex);
     void putAnimationMouth(unsigned long int anim, int index);
     void clearMouth();
 
@@ -95,8 +103,7 @@ class Otto
  
   private:
     
-    LedMatrix ledmatrix;
-    BatReader battery;
+    MaxMatrix ledMatrix;
     Oscillator servo[4];
     US us;
 
@@ -106,15 +113,22 @@ class Otto
 
     int pinBuzzer;
     int pinNoiseSensor;
-    
+    int ledMatrix_dir;
+
     unsigned long final_time;
     unsigned long partial_time;
     float increment[4];
 
     bool isOttoResting;
+    bool isUseBuzzer;
+    bool isUseNoiseSensor;
+    bool isUseUltrasonic;
+    bool isUseLEDMatrix;
 
-    unsigned long int getMouthShape(int number);
-    unsigned long int getAnimShape(int anim, int index);
+    MatrixRotation ledOrientation;
+
+    MouthData getMouthShape(int number);
+    MouthData getAnimShape(int anim, int index);
     void _execute(int A[4], int O[4], int T, double phase_diff[4], float steps);
 
 };
