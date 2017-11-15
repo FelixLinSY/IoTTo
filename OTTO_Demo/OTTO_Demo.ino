@@ -15,17 +15,19 @@
             |-----     -----|
   */
 
-#define OTTO_PIN_LLEG 15
-#define OTTO_PIN_RLEG 16
-#define OTTO_PIN_LFOOT 5
-#define OTTO_PIN_RFOOT 11
+#define OTTO_BLE_NAME   "IoTTo"     /* chagne a nice and unique name!! */
 
-#define OTTO_PIN_US_TRIGGER   2
-#define OTTO_PIN_US_ECHO      3
-#define OTTO_PIN_BUZ          4 
-#define OTTO_PIN_LED_DIN      7
-#define OTTO_PIN_LED_CS       8
-#define OTTO_PIN_LED_CLK      9
+#define OTTO_PIN_LLEG 2
+#define OTTO_PIN_RLEG 3
+#define OTTO_PIN_LFOOT 4
+#define OTTO_PIN_RFOOT 5
+
+#define OTTO_PIN_US_TRIGGER   8
+#define OTTO_PIN_US_ECHO      9
+#define OTTO_PIN_BUZ          10 
+#define OTTO_PIN_LED_DIN      11
+#define OTTO_PIN_LED_CS       12
+#define OTTO_PIN_LED_CLK      13
 
 
 /* not used if OTTO already calibrated */
@@ -189,7 +191,7 @@ void initRemoteUI()
 
   // Setup the Remote Control's UI canvas
   LRemote.setGrid(3, 10);
-  LRemote.setName("OTTO");
+  LRemote.setName(OTTO_BLE_NAME);
 
   // Add a push button
   home_btn.setText("HOME");
